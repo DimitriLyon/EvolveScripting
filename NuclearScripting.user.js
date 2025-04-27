@@ -11,6 +11,9 @@
 
 // consider selenium
 
+// define global variable
+var game = null;
+
 // Navigation Functions
 function getTab() {
     /*
@@ -134,14 +137,51 @@ function setSubTab(subTab) {
         return -1;
     }
     visibleSubTabs[subTab].firstChild.click();
+    return subTab;
 }
 
 function getSubSubTab() {
+    /*Function that returns the current subtab.
+    Subtabs are indexed from left to right.
+    Determine if the menu has a subtab,
+    Do this by checking if you aren't in settings.
+    If there is subtabs, determine which one, indexed from left to right, starting at 0
+    Return -1 if there is no subtabs
+    */
 
+    // Check if there is sub tabs
+    let actives = document.getElementsByClassName("is-active");
+    if (actives.length <= 3) {
+        return -1;
+    }
+    let subTabLabel = actives[2];
+    let subTabList = subTabLabel.parentElement.childNodes;
+    let visibleSubTabs = Array.from(subTabList).filter(item => item.style.display != "none");
+    let tabNum = 0;
+    for(let i = 0; i<visibleSubTabs.length; i++) {
+        if(visibleSubTabs[i].classList.contains("is-active")) {
+            tabNum = i;
+        }
+    }
+    return tabNum;
 }
 
 function setSubSubTab(subSubTab) {
-
+    /*
+    Function that sets the current subtab if subtabs exist
+    */
+    let actives = document.getElementsByClassName("is-active");
+    if (actives.length <= 2) {
+        return -1;
+    }
+    let subTabLabel = actives[2];
+    let subTabList = subTabLabel.parentElement.childNodes;
+    let visibleSubTabs = Array.from(subTabList).filter(item => item.style.display != "none");
+    if(subSubTab < 0 || subSubTab >= visibleSubTabs.length) {
+        return -1;
+    }
+    visibleSubTabs[subSubTab].firstChild.click();
+    return subSubTab;
 }
 
 // Tech Functions
@@ -151,7 +191,8 @@ function researchTech(tech) {
 }
 
 function getAvailableTechs() {
-    Array.from(document.getElementById("tech").childNodes);
+    let techElements = Array.from(document.getElementById("tech").childNodes);
+
 }
 
 function getTechCost(tech) {
@@ -187,18 +228,25 @@ function getAvailableBuildings() {
 }
 
 function purchaseBuilding(building) {
+    mouseover(building);
+
+    // todo finish
 
 }
 
 function getBuildingCost(building) {
     mouseover(building);
     let costs = document.getElementsByClassName("costList")[0];
+    // todo finish
 }
 
 function powerBuilding(building, amt = 1) {
+    // todo finish
+
 }
 
 function depowerBuilding(building, amt = 1) {
+    // todo finish
 }
 
 // Civics
@@ -245,13 +293,82 @@ function getWorkerLimit(job) {
 }
 
 function assignGovt(government) {
+    // This function isn't even necessary in the current version because synth
+    document.getElementById("govType").childNodes[1].childNodes[0].firstChild.click();
+    setTimeout(assignGovt2, 100, government);
+}
 
+function assignGovt2(govTarget) {
+    let govs = document.getElementById("govModal").childNodes;
+    for(let i = 0; i < govs.length; i++) {
+        if(govTarget == govs[i].dataset.gov) {
+            // UPDATE THIS
+            console.log(i)
+        }
+    }
 }
 
 function assignGovernor(governor) {
-
+    if (getTab() != 2) {
+        return -1;
+    }
+    if (getSubTab() != 0) {
+        return -1;
+    }
+    if (getSubSubTab() != 1) {
+        return -1;
+    }
+    let governorDivs = document.getElementsByClassName(governor);
+    if (governorDivs.length == 0) {
+        return -1;
+    }
+    let govDiv = governorDivs[0];
+    govDiv.childNodes[2].firstChild.click();
 }
 
+function assignGovernorTasks() {
+    // Hardcoded to set 2 tasks, crate construction and management
+    // TODO remake for full game script
+    // Everything else isn't really necessary in MAD (maybe maybe maybe an assemble citizens)
+    // Crate/Container Management
+    // Crate/Container Construction
+    let taskList = document.getElementsByClassName("govTask");
+    if (taskList.length == 0) {
+        return -1;
+    }
+    let task1 = taskList[0];
+    let taskAssigned = false;
+    let optionList1 = task1.childNodes[1].childNodes[2].childNodes[0].childNodes;
+    for(let i = 0; i < optionList1.length; i++) {
+        let candidate = optionList1[i];
+        if(candidate.innerText == "Crate/Container Management") {
+            taskAssigned = true;
+            candidate.click();
+            break;
+        }
+    }
+    //If Crate/Container Management hasn't been assigned, escape, as crates must not be available
+    if (!taskAssigned) {
+        return -1;
+    }
+
+    let task2 = taskList[1];
+    taskAssigned = false;
+    let optionList2 = task2.childNodes[1].childNodes[2].childNodes[0].childNodes;
+    for (let i = 0; i < optionList2.length; i++) {
+        let candidate = optionList2[i];
+        if(candidate.innerText == "Crate/Container Construction") {
+            taskAssigned = true;
+            candidate.click();
+            break;
+        }
+    }
+    if (!taskAssigned) {
+        return -1;
+    }
+
+    return 0;
+}
 
 // Misc Resources
 function getAvailableResources() {
@@ -260,6 +377,9 @@ function getAvailableResources() {
     return availableResources;
 }
 
+function updateResources() {
+
+}
 
 function multKey(amt, mappings) {
     // Implement some thing to get settings from settings
@@ -293,7 +413,6 @@ function mouseover(item) {
 }
 
 
-
 (function() {
     'use strict';
     // Your code here...
@@ -306,14 +425,25 @@ function mouseover(item) {
     console.log("Initialization complete");
 })();
 
+
 function defineVars() {
+    game = window.evolve;
     defineTechs();
     defineBuildings();
+    defineResources();
+}
+
+class Resource{
+}
+
+function defineResources() {
+    let myVars = window.myVars;
+
 }
 
 function defineBuildings() {
     let myVars = window.myVars;
-    myVars.sciBuildings = ["city-university","city-library","city-wardenclyffe","city-biolab"]
+    myVars.sciBuildings = ["city-university","city-library","city-wardenclyffe","city-biolab"];
 }
 
 function defineTechs() {
@@ -330,6 +460,11 @@ function defineTechs() {
     techListFlat = myVars.techLists.reduce((accumulator, currentValue) => accumulator.concat(currentValue), techListFlat);
     myVars.techListFlat = techListFlat;
     myVars.criticalPath = [];
+    let techObjs = [];
+
+    for(let i = 0; i < myVars.techListFlat.length; i++) {
+        techObjs.push(game.actions.tech[myVars.techListFlat[i]]);
+    }
 }
 
 function defineAPI(collectObj) {
@@ -356,6 +491,7 @@ function defineAPI(collectObj) {
     collectObj.getWorkerCount = getWorkerCount;
     collectObj.assignGovt = assignGovt;
     collectObj.assignGovernor = assignGovernor;
+    collectObj.assignGovernorTasks = assignGovernorTasks;
     collectObj.getAvailableResources = getAvailableResources;
     // General
     collectObj.getMappings = getMappings;
