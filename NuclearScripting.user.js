@@ -2,7 +2,7 @@
 // @name         NuclearScripting
 // @namespace    http://tampermonkey.net/
 // @version      2025-03-03
-// @description  try to take over the world!
+// @description  Complete a MAD run as fast as possible
 // @author       NuclearWinterMan
 // @match        http://localhost:4400/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=undefined.localhost
@@ -186,30 +186,50 @@ function setSubSubTab(subSubTab) {
 
 // Tech Functions
 function researchTech(tech) {
-    console.log(tech);
-    console.log(window.myMaps);
+  let techButton = document.getElementById(tech).firstChild;
+  let techName = tech.split("-")[1];
+  let techObj = window.evolve.actions.tech[techName];
+  if(window.evolve.checkAffordable(techObj)) {
+   	techButton.click();
+    return 0;
+  } else {
+    return -1;
+  }
 }
 
 function getAvailableTechs() {
-    let techElements = Array.from(document.getElementById("tech").childNodes);
+  let techList = Array.from(document.getElementById("tech").childNodes).filter((tech)=>tech.id);
+  techList = techList.map((tech)=>tech.id);
+    return techList;
+}
 
+function getOldTechs() {
+    let oldTechDiv = document.getElementById("oldTech");
+    let oldList = Array.from(oldTechDiv.childNodes);
+    let purchasedTechs = oldList.filter((techDiv) => !techDiv.id.includes("dist-old"));
+    purchasedTechs = purchasedTechs.map((techDiv) => techDiv.id);
+    return purchasedTechs;
 }
 
 function getTechCost(tech) {
-    // Save current tab
-    // Get check if tech is in available list
-    // if not, return to previous tab,
-    // otherwise, send a mouseover event
-   let moose = new MouseEvent('mouseover', {
-        'view':window,
-        'bubbles':true,
-        'cancelable':true
-    });
-    document.getElementById(tech).dispatchEvent(moose);
-
-    let costList = document.getElementsByClassName("costList")[0];
-    return costList;
+    let techIds = tech.split("-");
+    let sector = techIds[0];
+    let techName = techIds[1];
+    let costCollection = window.evolve.actions[sector][techName].cost;
+    let resNames = Object.keys(costCollection);
+    let costObj = {};
+    costObj.resList = [];
+    for(let i = 0; i < resNames.length; i++) {
+        let currRes = resNames[i];
+        let currCost = costCollection[currRes]();
+        if(currCost > 0) {
+            costObj.resList.push(currRes);
+            costObj[currRes] = currCost;
+        }
+    }
+    return costObj;
 }
+
 
 // Building functions
 function getAvailableBuildings() {
@@ -227,32 +247,87 @@ function getAvailableBuildings() {
     return availBldgs;
 }
 
+function getBuildingCount(building) {
+    // Hacky, since it uses debug obj
+    let bldgIds = building.split("-");
+    let sector = bldgIds[0];
+    let bldg = bldgIds[1];
+    let debugBldg = window.evolve.global[sector][bldg];
+    if (debugBldg === undefined) {
+        return 0;
+    } else {
+        return debugBldg.count;
+    }
+}
+
+function getAllBuildingCounts() {
+    let cityList = Array.from(document.getElementById("city").childNodes);
+    let residenceSlice = 0;
+    for(let i = 0; i < cityList.length; i++) {
+        if (cityList[i].id == "city-dist-residential") {
+            residenceSlice = i;
+        }
+    }
+    cityList = cityList.slice(residenceSlice);
+    let buildList = cityList.filter((building)=> !building.id.includes("-dist-"));
+    let allCounts = {};
+    for (let i = 0; i< buildList.length; i++) {
+        allCounts[buildList[i].id] = getBuildingCount(buildList[i].id);
+    }
+    return allCounts;
+}
+
 function purchaseBuilding(building) {
-    mouseover(building);
-
-    // todo finish
-
+    let bldgButton = document.getElementById(building).firstChild;
+    let bldgName = building.split("-")[1];
+    let bldgObj = window.evolve.actions.city[bldgName];
+    if(window.evolve.checkAffordable(bldgObj)) {
+        bldgButton.click();
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 function getBuildingCost(building) {
-    mouseover(building);
-    let costs = document.getElementsByClassName("costList")[0];
-    // todo finish
+    let bldgIds = building.split("-");
+    let sector = bldgIds[0];
+    let bldgName = bldgIds[1];
+    let costCollection = window.evolve.actions[sector][bldgName].cost;
+    let resNames = Object.keys(costCollection);
+    let costObj = {};
+    costObj.resList = [];
+    for(let i = 0; i < resNames.length; i++) {
+        let currRes = resNames[i];
+        let currCost = costCollection[currRes]();
+        if(currCost > 0) {
+            costObj.resList.push(currRes);
+            costObj[currRes] = currCost;
+        }
+    }
+    return costObj;
 }
 
 function powerBuilding(building, amt = 1) {
-    // todo finish
-
+    let childrenOfDiv = Array.from(document.getElementById(building).childNodes);
+    let onButton = childrenOfDiv.filter((child) => child.className == "on")[0];
+    for(let i = 0; i < amt; i++) {
+        onButton.click();
+    }
 }
 
 function depowerBuilding(building, amt = 1) {
-    // todo finish
+    let childrenOfDiv = Array.from(document.getElementById(building).childNodes);
+    let onButton = childrenOfDiv.filter((child) => child.className == "off")[0];
+    for(let i = 0; i < amt; i++) {
+        onButton.click();
+    }
 }
 
 // Civics
 function assignWorker(job, n = 1) {
     //Function to assign a certain number of workers to a job
-    let jobDiv = document.getElementById("civ-lumberjack");
+    let jobDiv = document.getElementById(job);
     let button = jobDiv.children[1].children[1];
     for( let i = 0; i < n; i++) {
         button.click();
@@ -260,7 +335,7 @@ function assignWorker(job, n = 1) {
 }
 
 function deassignWorker(job, n = 1) {
-    let jobDiv = document.getElementById("civ-lumberjack");
+    let jobDiv = document.getElementById(job);
     let button = jobDiv.children[1].children[0];
     for( let i = 0; i < n; i++) {
         button.click();
@@ -292,6 +367,13 @@ function getWorkerLimit(job) {
     return count;
 }
 
+function getAllJobs() {
+    let jobList = Object.keys(evolve.global.civic).filter((entry)=>Object.keys(window.evolve.global.civic[entry]).includes("job"));
+    let availableJobs = jobList.filter((entry)=>window.evolve.global.civic[entry].display);
+    availableJobs = availableJobs.filter((job) => job!="craftsman");
+    return availableJobs.map((job)=>"civ-"+job);
+}
+
 function assignGovt(government) {
     // This function isn't even necessary in the current version because synth
     document.getElementById("govType").childNodes[1].childNodes[0].firstChild.click();
@@ -309,15 +391,7 @@ function assignGovt2(govTarget) {
 }
 
 function assignGovernor(governor) {
-    if (getTab() != 2) {
-        return -1;
-    }
-    if (getSubTab() != 0) {
-        return -1;
-    }
-    if (getSubSubTab() != 1) {
-        return -1;
-    }
+    
     let governorDivs = document.getElementsByClassName(governor);
     if (governorDivs.length == 0) {
         return -1;
@@ -370,15 +444,109 @@ function assignGovernorTasks() {
     return 0;
 }
 
+// Market
+function setBuy(resource, amt) {
+    let marketDiv = document.getElementById("market-"+resource);
+    let panel = marketDiv.lastChild;
+    let currAmt = window.evolve.global.resource[resource].trade;
+    let amtDiff = amt - currAmt;
+    if (amtDiff == 0) {
+        return 0;
+    }
+    if (amtDiff < 0) {
+        let button = panel.childNodes[1].lastChild.lastChild;
+        for (let i = 0; i > amtDiff;i--) {
+            let currAmt = window.evolve.global.resource[resource].trade;
+            button.click();
+            if (currAmt != window.evolve.global.resource[resource].trade) {
+                return -1;
+            }
+        }
+        return 0;
+    } else if (amtDiff > 0) {
+        let button = panel.childNodes[3].lastChild.lastChild;
+        for (let i = 0; i < amtDiff; i++) {
+            let currAmt = window.evolve.global.resource[resource].trade;
+            button.click();
+            if (currAmt != window.evolve.global.resource[resource].trade) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+}
+
+function getTrade(resource) {
+    return window.evolve.global.resource[resource].trade;
+}
+
+
 // Misc Resources
 function getAvailableResources() {
     let resourceElem = document.getElementById("resources");
-    let availableResources = Array.from(resourceElem.childNodes).filter(entry=>entry.checkVisibility());
-    return availableResources;
+    let availableResourcesDOM = Array.from(resourceElem.childNodes).filter(entry=>entry.checkVisibility());
+    let recNames = [];
+    for(let i = 0; i < availableResourcesDOM.length; i++) {
+        let currId = availableResourcesDOM[i].id;
+        if(currId.substring(0,3)=="res") {
+            recNames.push(currId.substring(3));
+        }
+    }
+    return recNames;
 }
 
-function updateResources() {
+function getResourceAmt(res) {
+    return window.evolve.global.resource[res].amount;
+}
 
+function getResourceCap(res) {
+    return window.evolve.global.resource[res].max;
+}
+
+function incSmelt(res, amt=1) {
+    let panel = document.getElementsByClassName("steel")[0].parentNode;
+    if (res == "Iron") {
+        let button = panel.children[2];
+        for(let i = 0; i< amt; i++) {
+            button.click();
+        }
+    } else {
+        let button = panel.children[5];
+        for(let i = 0; i < amt; i++) {
+            button.click();
+        }
+    }
+}
+
+function decSmelt(res, amt=1) {
+    let panel = document.getElementsByClassName("steel")[0].parentNode;
+    if (res == "Iron") {
+        let button = panel.children[0];
+        for(let i = 0; i< amt; i++) {
+            button.click();
+        }
+    } else {
+        let button = panel.children[3];
+        for(let i = 0; i < amt; i++) {
+            button.click();
+        }
+    }
+}
+
+function craftResource(resource, amt) {
+    for(let i = 0; i<amt; i++) {
+        document.getElementById("inc"+resource+"1").click();
+    }
+}
+
+function getPower() {
+    // Returns a pair of actual power and power from environmentalist
+    let power = window.evolve.city.power;
+    if (window.evolve.actions.city.oil_power.effect() == "+8MW") {
+        return [power, getBuildingCount("city-oil_power") * 2];
+    } else {
+        return [power, 0];
+    }
 }
 
 function multKey(amt, mappings) {
@@ -413,6 +581,97 @@ function mouseover(item) {
 }
 
 
+function baseLine() {
+    let allBLDG = getAvailableBuildings();
+    let allTech = getAvailableTechs();
+    let allJobs = getAllJobs();
+    let availRes = getAvailableResources();
+    let smeltable = ["Iron", "Steel"];
+    let craftable = window.myVars.craftedResources.filter((res) => availRes.includes(res));
+    let adjusts = [];
+    let counts = [];
+    let maxRange = 5;
+    for(let i = 1; i <= maxRange; i++) {
+        adjusts.push(-i);
+        adjusts.push(i);
+        counts.push(i);
+    }
+    
+    //console.log(craftable);
+    
+    // First, try to build.
+    let amtBuilds = Math.rand(0,6);
+    for (let i = 0; i <amtBuilds; i++) {
+        let build = allBLDG[Math.rand(0,allBLDG.length)];
+        let targetAmt = Math.rand(1, maxRange+1);
+        for (let j = 0; j<targetAmt; j++) {
+            purchaseBuilding(build);
+        }
+    }
+    
+    // Next, try to research techs
+    let amtTechs = Math.rand(0,6);
+    for (let i = 0; i < amtTechs; i++) {
+        let techName = allTech[Math.rand(0, allTech.length)];
+        researchTech(techName);
+    }
+    
+    //check if citizens
+    if(getResourceAmt("custom") > 0) {
+        let amtAdjusts = Math.rand(0,6);
+        for(let i = 0; i< amtAdjusts; i++) {
+            let jobTarget = allJobs[Math.rand(0, allJobs.length)];
+            let adjustSize = Math.rand(1,6);
+            if(Math.random() > .5) {
+                assignWorker(jobTarget, adjustSize);
+            } else {
+                deassignWorker(jobTarget, adjustSize);
+            }
+        }
+    }
+    
+    // check if smelting
+    if(getBuildingCount("city-smelter") > 0) {
+        if(Math.random() > .5) {
+            incSmelt("Iron", Math.rand(0,6));
+        } else {
+            incSmelt("Steel", Math.rand(0,6));
+        }
+    }
+    
+    //craft a random mat
+    let craftRes = craftable[Math.rand(0,craftable.length)];
+    craftResource(craftRes, Math.rand(0,25));
+    
+    
+    let purchasedBuildings = getAllBuildingCounts();
+    let researchedTechs = getOldTechs();
+    //Throw bone here, if somehow manage to research governors
+    
+    if (researchedTechs.includes("tech-governor") && !window.myVars.assignedGov) {
+        assignGovernor("entrepreneur");
+    }
+    
+    if(researchedTechs.includes("tech-mad")) {
+        console.log("MAD researched at day: " + window.evolve.global.stats.days);
+        return;
+    }
+    
+    let delay = 5000;
+    if(document.getElementsByClassName("atime")[0].checkVisibility()) {
+        delay /= 2;
+    }
+    setTimeout(baseLine, delay);
+    
+}
+
+function mainRunner() {
+
+}
+
+function scheduler() {
+}
+
 (function() {
     'use strict';
     // Your code here...
@@ -428,6 +687,7 @@ function mouseover(item) {
 
 function defineVars() {
     game = window.evolve;
+    window.myVars.assignedGov = false;
     defineTechs();
     defineBuildings();
     defineResources();
@@ -437,8 +697,18 @@ class Resource{
 }
 
 function defineResources() {
+    //TODO Update this with new version if anything changes
+    // Subject to change depending on Version and if new crafteds or advanced resources are added
     let myVars = window.myVars;
-
+    let resources = document.getElementById("resources");
+    let allResources = myVars.allResources = Array.from(resources.children).filter((x)=>x.id).map(entry=>entry.id.substring(3));
+    myVars.prestigeResources = allResources.slice(allResources.findIndex((element)=>element=="Blood_Stone"))
+    myVars.basicResources = allResources.slice(allResources.indexOf("Food"), allResources.indexOf("Helium_3")+1);
+    myVars.craftedResources = allResources.slice(allResources.indexOf("Plywood"),allResources.indexOf("Quantium")+1);
+    myVars.advResources = allResources.slice(allResources.indexOf("Water"), allResources.indexOf("Soul_Gem")+1);
+    myVars.specialResources = allResources.slice(allResources.indexOf("Money"), allResources.indexOf("Containers")+1);
+    myVars.currency = ["Money","Knowledge"];
+    // Not gonna model the special stuff (codexes and such)
 }
 
 function defineBuildings() {
@@ -459,13 +729,28 @@ function defineTechs() {
     let techListFlat = [];
     techListFlat = myVars.techLists.reduce((accumulator, currentValue) => accumulator.concat(currentValue), techListFlat);
     myVars.techListFlat = techListFlat;
-    myVars.criticalPath = [];
+    myVars.criticalPath = [ "tech-club", "tech-bone_tools", "tech-copper_sledgehammer", "tech-iron_sledgehammer", "tech-steel_sledgehammer", "tech-sundial", "tech-science", "tech-library", "tech-thesis", "tech-research_grant", "tech-scientific_journal", "tech-adjunct_professor", "tech-tesla_coil", "tech-internet", "tech-bioscience", "tech-mad_science", "tech-archaeology", "tech-housing", "tech-cottage", "tech-apartment", "tech-steel_beams", "tech-alt_lodge", "tech-wind_plant", "tech-coal_mining", "tech-electricity", "tech-uranium", "tech-oil_well", "tech-oil_power", "tech-foundry", "tech-artisans", "tech-apprentices", "tech-carpentry", "tech-master_craftsman", "tech-brickworks", "tech-machinery", "tech-assembly_line", "tech-thermomechanics", "tech-theatre", "tech-playwright", "tech-magic", "tech-radio", "tech-tv", "tech-mining", "tech-bayer_process", "tech-smelting", "tech-steel", "tech-blast_furnace", "tech-bessemer_process", "tech-rotary_kiln", "tech-metal_working", "tech-iron_mining", "tech-mine_conveyor", "tech-copper_pickaxe", "tech-iron_pickaxe", "tech-dynamite", "tech-anfo", "tech-hunter_process", "tech-storage", "tech-reinforced_shed", "tech-barns", "tech-warehouse", "tech-cameras", "tech-containerization", "tech-reinforced_crates", "tech-cranes", "tech-titanium_crates", "tech-steel_containers", "tech-gantry_crane", "tech-alloy_containers", "tech-uranium_storage", "tech-oil_depot", "tech-urban_planning", "tech-assistant", "tech-government", "tech-republic", "tech-technocracy", "tech-governor", "tech-spy", "tech-espionage", "tech-spy_training", "tech-spy_gadgets", "tech-code_breakers", "tech-currency", "tech-market", "tech-tax_rates", "tech-corruption", "tech-banking", "tech-investing", "tech-vault", "tech-bonds", "tech-steel_vault", "tech-eebonds", "tech-home_safe", "tech-merchandising", "tech-large_trades", "tech-massive_trades", "tech-trade", "tech-diplomacy", "tech-freight", "tech-industrialization", "tech-electronics", "tech-fission", "tech-black_powder", "tech-arpa", "tech-rocketry", "tech-stone_axe", "tech-copper_axes", "tech-iron_saw", "tech-steel_saw", "tech-iron_axes", "tech-steel_axes", "tech-garrison", "tech-boot_camp", "tech-bows", "tech-flintlock_rifle", "tech-machine_gun", "tech-bunk_beds", "tech-mad", "tech-cement", "tech-rebar", "tech-steel_rebar", "tech-portland_cement", "tech-screw_conveyor", "tech-theology", "tech-alt_fanaticism", "tech-indoctrination", "tech-missionary", "tech-alt_anthropology", "tech-mythology"];
     let techObjs = [];
 
     for(let i = 0; i < myVars.techListFlat.length; i++) {
-        techObjs.push(game.actions.tech[myVars.techListFlat[i]]);
+        let techName = techListFlat[i].replace("tech-","");
+        techObjs.push(game.actions.tech[techName]);
     }
+    
 }
+
+function derefTechName(tech) {
+    let techName = tech.replace("tech-","")
+    return window.evolve.actions.tech[techName];
+}
+
+function derefBuildName(bldg) {
+    // ONLY GETS THE BUILDINGS FROM CITY TAB
+    let buildName = bldg.replace("city-","");
+    return window.evolve.actions.city[buildName];
+}
+
+// Note: when using
 
 function defineAPI(collectObj) {
     // Navigation
@@ -479,24 +764,38 @@ function defineAPI(collectObj) {
     collectObj.researchTech = researchTech;
     collectObj.getTechCost = getTechCost;
     collectObj.getAvailableTechs = getAvailableTechs;
+    collectObj.derefTechName = derefTechName;
+    collectObj.getOldTechs = getOldTechs;
     // Buildings
     collectObj.getAvailableBuildings = getAvailableBuildings;
     collectObj.purchaseBuilding = purchaseBuilding;
     collectObj.getBuildingCost = getBuildingCost;
+    collectObj.getBuildingCount = getBuildingCount;
+    collectObj.getAllBuildingCounts = getAllBuildingCounts;
     collectObj.powerBuilding = powerBuilding;
     collectObj.depowerBuilding = depowerBuilding;
+    collectObj.derefBuildName = derefBuildName;
     // Civics
     collectObj.assignWorker = assignWorker;
     collectObj.deassignWorker = deassignWorker;
     collectObj.getWorkerCount = getWorkerCount;
+    collectObj.getAllJobs = getAllJobs;
     collectObj.assignGovt = assignGovt;
     collectObj.assignGovernor = assignGovernor;
     collectObj.assignGovernorTasks = assignGovernorTasks;
+    
+    collectObj.getPower = getPower;
+    collectObj.getResourceAmt = getResourceAmt;
+    collectObj.getResourceCap = getResourceCap;
     collectObj.getAvailableResources = getAvailableResources;
+    collectObj.setBuy = setBuy;
     // General
     collectObj.getMappings = getMappings;
     // Modifier keys
     collectObj.multKey = multKey;
     collectObj.releaseMultKey = releaseMultKey;
     collectObj.mouseover = mouseover;
+    
+    // Test code
+    collectObj.baseLine = baseLine;
 }
